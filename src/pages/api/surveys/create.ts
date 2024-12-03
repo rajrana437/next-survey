@@ -1,4 +1,3 @@
-// src/pages/api/surveys/create.ts
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Survey } from '@/models/Survey';
 import connectDB from '@/lib/db';
@@ -9,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   await connectDB();
 
-  const { title, questions } = req.body;
+  const { title, questions, surveyId } = req.body; 
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
 
@@ -19,20 +18,37 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Validate the question structure and answer types
   const isValid = questions.every((question: any) => {
-    return (
-      question.question &&
-      ['text', 'dropdown', 'radio', 'checkbox'].includes(question.answerType) &&
-      (question.answerType !== 'text' ? Array.isArray(question.options) && question.options.length > 0 : true)
-    );
+    // Check if question is valid
+    const hasValidAnswerType = ['text', 'dropdown', 'radio', 'checkbox'].includes(question.answerType);
+    
+    // If answer type is not 'text', ensure options are present and properly formatted
+    if (question.answerType !== 'text') {
+      if (typeof question.options === 'string') {
+        question.options = question.options.split(',').map((option: string) => option.trim());
+      }
+
+      return (
+        question.question &&
+        hasValidAnswerType &&
+        Array.isArray(question.options) && question.options.length > 0
+      );
+    }
+
+    // If answer type is 'text', ensure question is valid
+    return question.question && hasValidAnswerType;
   });
 
   if (!isValid) {
     return res.status(400).json({ error: 'Invalid question structure or missing options for answer types' });
   }
 
-  const survey = new Survey({ title, creatorId: decoded.userId, questions });
+  const survey = new Survey({ title, creatorId: decoded.userId, questions, surveyId });
   await survey.save();
-  res.status(201).json({ survey });
+
+  // Generate the survey link using the saved survey ID
+  const surveyLink = `${process.env.HOST_URL}/survey/${survey.surveyId}`;
+
+  res.status(201).json({ survey, link: surveyLink });
 };
 
 interface JwtPayloadWithUserId extends jwt.JwtPayload {
