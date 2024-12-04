@@ -1,6 +1,9 @@
 import mongoose, { ConnectOptions } from 'mongoose';
 
-const MONGODB_URI: string = process.env.MONGODB_URI || 'mongodb://localhost:27017/quickSurvey';
+const MONGODB_URI = process.env.MONGODB_URI || 'not found';
+
+console.log(MONGODB_URI);
+
 
 const connectDB = async () => {
   try {
